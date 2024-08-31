@@ -19,7 +19,10 @@ export default async function BlogsPage() {
   }, {} as Record<string, number>);
 
   const sorted = allProjects
-    .filter((p) => p.published)
+    .filter((p) => {
+      console.log(p.slug);
+      return p.published;
+    })
     .sort(
       (a, b) =>
         new Date(b.date ?? Number.POSITIVE_INFINITY).getTime() -

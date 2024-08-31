@@ -2,6 +2,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
+import { LanguageSwitcher } from "./langSwitcher";
 
 export const Navigation: React.FC = () => {
 	const ref = useRef<HTMLElement>(null);

@@ -6,8 +6,8 @@ import { Analytics } from "./components/analytics";
 
 export const metadata: Metadata = {
   title: {
-    default: "nabil.top",
-    template: "%s | nabil.top",
+    default: "Nabil",
+    template: "%s | Nabil",
   },
   description: "Software developer excited about Server-side development, Distributed systems, System programming, and Security.",
   robots: {

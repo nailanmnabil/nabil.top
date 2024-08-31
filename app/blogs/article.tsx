@@ -1,6 +1,6 @@
 import type { Blog } from "@/.contentlayer/generated";
 import Link from "next/link";
-import { Eye, View } from "lucide-react";
+import { Eye } from "lucide-react";
 
 type Props = {
   blog: Blog;

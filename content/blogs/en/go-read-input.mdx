@@ -1,0 +1,189 @@
+---
+title: Various Ways to Read Files (Input) in Golang
+description: Reading input is a common task in the applications we create. Therefore, it's important for us to know the various methods that can be used, so we can choose the most appropriate method according to our application's needs.
+repository: nailanmnabil/go-read-input
+date: 2024-08-30
+published: true
+---
+
+Here are several methods we can use to read input in Golang, along with the advantages and disadvantages of each method. This article will also present benchmark results for each method in various usage scenarios.
+
+### 1. Reading the entire file content at once
+
+The first method is to read the entire file content at once. Here's the code to use this method:
+
+```go
+func ReadAll(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	_, err = io.ReadAll(file)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+```
+
+Furthermore, this is what happens behind the scenes:
+
+1. Our application will open the file that will be read
+2. After opening, the entire file content will be **copied** into memory (RAM)
+3. The file is then closed after the copying process is complete
+4. Then our application processes the data further
+
+The **advantage** of this file reading strategy is high performance because the file that was previously on disk is moved entirely to memory. However, it must be accompanied by sufficient memory capacity to store the data, and it should be noted that the process of copying data from disk to memory can slow down the reading process.
+
+The **disadvantage** of this file reading strategy is that it's memory-intensive because all file contents will be stored in memory, which could potentially decrease our application's performance.
+
+It's **suitable to use** when the size of the file to be read is quite small so that the data in the file can be stored in memory.
+
+Here are the benchmark results for reading CSV files with sizes of `58.4 MB, 935.9 MB, and 3.8 GB` in order from `small, medium, and big`:
+
+```go
+$ go test -bench=ReadAll
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkReadAllSmall-12     21        55924615  ns/op |  0.055924615 second/op |  58.4 MB | Small
+BenchmarkReadAllMed-12        1      1760462054  ns/op |  1.760462054 second/op | 935.9 MB | Medium
+BenchmarkReadAllBig-12        1     20848629609  ns/op | 20.848629609 second/op |   3.8 GB | Big
+```
+
+### 2. Reading file contents gradually
+
+The second method is to read file contents gradually with a certain amount (buffering). Here's the code to use this method:
+
+```go
+func BufferedReading(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	for {
+		buffer := make([]byte, 1024)
+		_, err := reader.Read(buffer)
+
+		// _, err := file.Read(buffer) // alternative
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalln(err)
+		}
+	}
+}
+```
+
+Furthermore, this is what happens behind the scenes:
+
+1. Our application will open the file that will be read
+2. After opening, our application will prepare a container or buffer of a size that can be determined. This container will be used to store the file contents copied from the original file **part by part** according to the buffer size
+3. Then after the data is copied into the buffer, our application processes the data, and after processing, the buffer will be used for the next reading
+4. After our application finishes processing the data, the file will be closed
+
+The **advantage** of this file reading strategy is that it's memory-efficient because even when reading very large files, our application will still allocate memory according to the buffer size.
+
+The **disadvantage** of this file reading strategy is its latency because our application has to refill the buffer or container little by little according to the buffer size.
+
+It's **suitable to use** for reading large files because our memory is not burdened by the large file size.
+
+Here are the benchmark results for reading CSV files with sizes of `58.4 MB, 935.9 MB, and 3.8 GB` in order from `small, medium, and big`:
+
+```go
+$ go test -bench=Buffer
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkBufferedReadingSmall-12    32       35586452 ns/op | 0.035586452 second/op |  58.4 MB | Small
+BenchmarkBufferedReadingMed-12       2      526472720 ns/op | 0.526472720 second/op | 935.9 MB | Medium
+BenchmarkBufferedReadingBig-12       1     2315339263 ns/op | 2.315339263 second/op |   3.8 GB | Big
+```
+
+### 3. Mapping file contents to our application's [virtual memory](https://en.wikipedia.org/wiki/Virtual_memory)
+
+The third method is to read file contents directly into [virtual memory](https://en.wikipedia.org/wiki/Virtual_memory), where the operating system will map the file into virtual memory. Here's the code to use this method:
+
+```go
+func Mmap(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	data, err := syscall.Mmap(int(file.Fd()), 0, int(stat.Size()), syscall.PROT_READ, syscall.MAP_SHARED)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer func() {
+		err = syscall.Munmap(data)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
+}
+```
+
+Furthermore, this is what happens behind the scenes:
+
+1. Our application makes a [syscall](https://en.wikipedia.org/wiki/System_call) mmap to the operating system, then the application accesses part of the data from the file through a pointer
+2. When part of the data from a file is not yet in virtual memory [(page fault error)](https://en.wikipedia.org/wiki/Page_fault), the OS will map or connect the address in virtual memory to physical memory page by page or part by part (usually 4 KB in size)
+3. If the data already exists, the application directly reads that part
+4. After the application finishes processing the data, the map will be unmapped
+
+The **advantage** of this file reading strategy is that it's very fast even with very large files. This can happen because mmap only requires one syscall compared to the buffering reading strategy. Additionally, the operating system also performs several other optimizations, one of which is storing the map from virtual to physical address in the [TLB (translation look aside buffer)](https://en.wikipedia.org/wiki/Translation_lookaside_buffer) so that if there's access to parts of the file that have been read before, it will happen faster.
+
+> **Note:**
+> Buffering performs many syscalls each time it refills its buffer, which can be very expensive because there will be [context switching](https://en.wikipedia.org/wiki/Context_switch) between [user space and kernel space](https://en.wikipedia.org/wiki/User_space_and_kernel_space) every time a syscall is made, while mmap only performs 2 context switches in its process.
+
+The **disadvantage** of this file reading strategy lies in the problem of `data synchronization`, because the file we access is mapped directly from disk, there may be other applications or [processes](<https://en.wikipedia.org/wiki/Process_(computing)>) accessing the file, so we have to think more about how data synchronization will be done. In the mmap syscall itself, there is a parameter we can use to set how data synchronization will be done, namely the 5th parameter `flags int` which in the example above is [`syscall.MAP_SHARED`](https://man7.org/linux/man-pages/man2/mmap.2.html). Apart from the previous disadvantages, there are many other disadvantages that even have a separate [paper](https://db.cs.cmu.edu/papers/2022/cidr2022-p13-crotty.pdf) to discuss them.
+ 
+It's **suitable to use** for reading very large files very quickly.
+
+Here are the benchmark results for reading CSV files with sizes of `58.4 MB, 935.9 MB, and 3.8 GB` in order from `small, medium, and big`:
+
+```go
+$ go test -bench=Mmap
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkMmapSmall-12     115899      10281 ns/op | 0.000010281 second/op |  58.4 MB | Small
+BenchmarkMmapMed-12        62193      19215 ns/op | 0.000019215 second/op | 935.9 MB | Medium
+BenchmarkMmapBig-12        59864      19788 ns/op | 0.000019788 second/op |   3.8 GB | Big
+```
+
+From the benchmark results above, mmap is indeed superior compared to other strategies, and it's interesting to explore further. In the future, I will discuss mmap in more depth <sup>if I'm not lazy</sup>.
+
+### Overall benchmark results
+
+```go
+$ go test -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkReadAllSmall-12                20       55083636 ns/op |  0.055083636 second/op |  58.4 MB | Small
+BenchmarkBufferedReadingSmall-12        31       37148273 ns/op |  0.037148273 second/op |  58.4 MB | Small
+BenchmarkMmapSmall-12               111568          10760 ns/op |   0.00001076 second/op |  58.4 MB | Small
+BenchmarkReadAllMed-12                   1     1537032544 ns/op |  1.537032544 second/op | 935.9 MB | Medium
+BenchmarkBufferedReadingMed-12           2      553790782 ns/op |  0.553790782 second/op | 935.9 MB | Medium
+BenchmarkMmapMed-12                  61093          19459 ns/op |  0.000019459 second/op | 935.9 MB | Medium
+BenchmarkReadAllBig-12                   1    13381838237 ns/op | 13.381838237 second/op |   3.8 GB | Big
+BenchmarkBufferedReadingBig-12           1     4865138266 ns/op |  4.865138266 second/op |   3.8 GB | Big
+BenchmarkMmapBig-12                  58958          19832 ns/op |  0.000019832 second/op |   3.8 GB | Big
+```

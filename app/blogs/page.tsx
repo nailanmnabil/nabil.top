@@ -1,4 +1,3 @@
-import Link from "next/link";
 import React from "react";
 import { allBlogs } from "contentlayer/generated";
 import { Navigation } from "../components/nav";
@@ -21,6 +20,7 @@ export default async function BlogsPage() {
 
   const sorted = allBlogs
     .filter((p) => p.published)
+    .filter((p) => p.langSlug == "en")
     .sort(
       (a, b) =>
         new Date(b.date ?? Number.POSITIVE_INFINITY).getTime() -

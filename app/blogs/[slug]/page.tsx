@@ -8,14 +8,6 @@ import { Redis } from "@upstash/redis";
 import GiscusComment from "@/app/components/giscus";
 import { Metadata } from "next";
 
-export const metadata: Metadata = {
-  title: {
-    default: "nabil.top",
-    template: "%s | nabil.top",
-  },
-  description: "",
-};
-
 export const revalidate = 60;
 
 type Props = {
@@ -34,15 +26,32 @@ export async function generateStaticParams(): Promise<Props["params"][]> {
     }));
 }
 
-export default async function PostPage({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = params?.slug;
   const blog = allBlogs.find((blog) => blog.slug === slug);
 
   if (!blog) {
-    notFound();
+    return {
+      title: "Not Found | Nabil",
+      description: "The blog post you are looking for was not found.",
+    };
   }
 
-  metadata.description = blog.description;
+  return {
+    title: `${blog.title}`,
+    description: blog.description,
+  };
+}
+
+export default async function PostPage({ params }: Props) {
+  const slug = params?.slug;
+  const blog = allBlogs.find(
+    (blog) => blog.slug === slug && blog.langSlug == "en"
+  );
+
+  if (!blog) {
+    notFound();
+  }
 
   const views =
     (await redis.get<number>(["pageviews", "blogs", slug].join(":"))) ?? 0;
