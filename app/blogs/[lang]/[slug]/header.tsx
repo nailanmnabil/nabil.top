@@ -11,9 +11,10 @@ type Props = {
     repository?: string;
   };
   views: number;
+  lang: string;
 };
 
-export const Header: React.FC<Props> = ({ blog, views }) => {
+export const Header: React.FC<Props> = ({ blog, views, lang }) => {
   const ref = useRef<HTMLElement>(null);
   const [isIntersecting, setIntersecting] = useState(true);
 
@@ -88,7 +89,7 @@ export const Header: React.FC<Props> = ({ blog, views }) => {
           </div>
 
           <Link
-            href="/blogs"
+            href={`/blogs/${lang}`}
             className={`duration-200 hover:font-medium ${
               isIntersecting
                 ? " text-zinc-400 hover:text-zinc-100"

@@ -19,7 +19,7 @@ const computedFields = {
         : doc._raw.flattenedPath.split("/").at(1);
     },
   },
-  langSlug: {
+  lang: {
     type: "string",
     resolve: (doc) => doc._raw.flattenedPath.split("/").at(1),
   },

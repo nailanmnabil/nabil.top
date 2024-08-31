@@ -3,7 +3,7 @@ import React from "react";
 import Particles from "./components/particles";
 
 const navigation = [
-  { name: "Blogs", href: "/blogs" },
+  { name: "Blogs", href: "/blogs/en" },
   { name: "Projects", href: "/projects" },
   { name: "Contact", href: "/contact" },
 ];

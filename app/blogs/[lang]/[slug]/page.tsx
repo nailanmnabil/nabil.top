@@ -13,24 +13,27 @@ export const revalidate = 60;
 type Props = {
   params: {
     slug: string;
+    lang: string;
   };
 };
 
 const redis = Redis.fromEnv();
 
 export async function generateStaticParams(): Promise<Props["params"][]> {
-  return allBlogs
+  const data = allBlogs
     .filter((p) => p.published)
     .map((p) => ({
       slug: p.slug,
+      lang: p.slug,
     }));
+
+  return data;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = params?.slug;
-  const blog = allBlogs.find(
-    (blog) => blog.slug === slug && blog.langSlug == "en"
-  );
+  const lang = params?.slug;
+  const blog = allBlogs.find((blog) => blog.slug === slug && blog.lang == lang);
 
   if (!blog) {
     return {
@@ -47,9 +50,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostPage({ params }: Props) {
   const slug = params?.slug;
-  const blog = allBlogs.find(
-    (blog) => blog.slug === slug && blog.langSlug == "en"
-  );
+  const lang = params?.lang;
+  const blog = allBlogs.find((blog) => blog.slug === slug && blog.lang == lang);
 
   if (!blog) {
     notFound();
@@ -60,7 +62,7 @@ export default async function PostPage({ params }: Props) {
 
   return (
     <div className="bg-zinc-50 min-h-screen">
-      <Header blog={blog} views={views} />
+      <Header blog={blog} views={views} lang={lang} />
       <ReportView slug={blog.slug} />
 
       <article className="px-4 py-8 max-w-4xl mx-auto prose prose-zinc prose-quoteless">

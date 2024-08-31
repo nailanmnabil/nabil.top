@@ -1,28 +1,37 @@
-import { useRouter } from "next/router";
+"use client";
 
-export function LanguageSwitcher() {
-  const router = useRouter();
-  const { pathname, asPath, query } = router;
-  const currentLang = router.locale;
+import React from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 
-  const switchLanguage = (newLang: string) => {
-    router.push({ pathname, query }, asPath, { locale: newLang });
+const LanguageSwitcher = () => {
+  let pathname = usePathname();
+
+  const buttonClass = (lang: string) => {
+    if (pathname === null) {
+      pathname = "/blogs/en";
+    }
+
+    return `
+    transition-all duration-200 ease-in-out
+    ${
+      pathname.endsWith(lang)
+        ? "text-zinc-100"
+        : "duration-500 text-zinc-500 hover:text-zinc-300"
+    }
+  `;
   };
 
   return (
-    <div>
-      <button
-        onClick={() => switchLanguage("en")}
-        disabled={currentLang === "en"}
-      >
-        English
-      </button>
-      <button
-        onClick={() => switchLanguage("id")}
-        disabled={currentLang === "id"}
-      >
-        Indonesia
-      </button>
+    <div className="flex gap-4">
+      <Link href={"/blogs/id"} className={buttonClass("id")}>
+        ID
+      </Link>
+      <Link href={"/blogs/en"} className={buttonClass("en")}>
+        EN
+      </Link>
     </div>
   );
-}
+};
+
+export default LanguageSwitcher;
