@@ -28,7 +28,9 @@ export async function generateStaticParams(): Promise<Props["params"][]> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = params?.slug;
-  const blog = allBlogs.find((blog) => blog.slug === slug);
+  const blog = allBlogs.find(
+    (blog) => blog.slug === slug && blog.langSlug == "en"
+  );
 
   if (!blog) {
     return {
