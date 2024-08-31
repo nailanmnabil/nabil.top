@@ -24,7 +24,7 @@ export async function generateStaticParams(): Promise<Props["params"][]> {
     .filter((p) => p.published)
     .map((p) => ({
       slug: p.slug,
-      lang: p.slug,
+      lang: p.lang,
     }));
 
   return data;
@@ -32,7 +32,7 @@ export async function generateStaticParams(): Promise<Props["params"][]> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = params?.slug;
-  const lang = params?.slug;
+  const lang = params?.lang;
   const blog = allBlogs.find((blog) => blog.slug === slug && blog.lang == lang);
 
   if (!blog) {
