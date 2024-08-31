@@ -1,0 +1,189 @@
+---
+title: Berbagai Cara Membaca File (Input) di Golang
+description: Membaca input adalah hal yang sering dilakukan dalam aplikasi yang kita buat. Oleh karena itu, penting bagi kita untuk mengetahui berbagai cara yang dapat digunakan, sehingga kita bisa memilih metode yang paling tepat sesuai dengan kebutuhan aplikasi kita.
+repository: nailanmnabil/go-read-input
+date: 2024-08-30
+published: true
+---
+
+Berikut adalah beberapa metode yang dapat kita lakukan untuk membaca input di Golang, disertai dengan keunggulan dan kelemahan masing-masing metode. Di artikel ini juga akan disajikan hasil benchmark untuk setiap metode dalam berbagai skenario penggunaan.
+
+### 1. Membaca semua isi file sekaligus
+
+Cara pertama adalah dengan membaca semua isi file sekaligus, berikut adalah kode untuk menggunakan cara ini:
+
+```go
+func ReadAll(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	_, err = io.ReadAll(file)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+```
+
+Lebih jauh lagi, ini adalah apa yang terjadi di balik layar:
+
+1. Aplikasi kita akan membuka file yang nantinya akan di baca
+2. Setelah di buka, isi file tersebut akan **di copy semua nya** ke dalam memory (RAM)
+3. File lalu di tutup setelah proses peng copy an selesai
+4. Lalu aplikasi kita mengolah data tersebut lebih lanjut
+
+**Kelebihan** strategi pembacaan file ini adalah memiliki performa tinggi karena file yang tadinya ada di disk dipindahkan semua ke memory, akan tetapi harus di barengi dengan kapasitas memory yang cukup untuk menyimpan data tersebut serta perlu disadari bahwa proses copy data dari disk ke memory bisa memperlambat proses pembacaan.
+
+**Kekurangan** strategi pembacaan file ini adalah boros memory karena semua isi file akan disimpan di dalam memory yang bisa saja menyebabkan turun nya performa aplikasi kita.
+
+**Cocok digunakan** ketika ukuran file yang akan di baca cukup kecil sehingga data yang ada di dalam file tersebut bisa disimpan di dalam memory.
+
+Berikut adalah hasil benchmark untuk pembacaan file csv dengan ukuran `58.4 MB, 935.9 MB, dan 3.8 GB` berurutan dari `small, medium, dan big`
+
+```go
+$ go test -bench=ReadAll
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkReadAllSmall-12     21        55924615  ns/op |  0.055924615 second/op |  58.4 MB | Small
+BenchmarkReadAllMed-12        1      1760462054  ns/op |  1.760462054 second/op | 935.9 MB | Medium
+BenchmarkReadAllBig-12        1     20848629609  ns/op | 20.848629609 second/op |   3.8 GB | Big
+```
+
+### 2. Membaca isi file secara bertahap
+
+Cara kedua adalah dengan membaca isi file secara bertahap dengan jumlah tertentu (buffering), berikut adalah kode untuk menggunakan cara ini:
+
+```go
+func BufferedReading(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer file.Close()
+
+	reader := bufio.NewReader(file)
+
+	for {
+		buffer := make([]byte, 1024)
+		_, err := reader.Read(buffer)
+
+		// _, err := file.Read(buffer) // alternative
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Fatalln(err)
+		}
+	}
+}
+```
+
+Lebih jauh lagi, ini adalah apa yang terjadi di balik layar:
+
+1. Aplikasi kita akan membuka file yang nantinya akan di baca
+2. Setelah di buka, aplikasi kita akan menyiapkan wadah atau buffer yang ukuran nya dapat di tentukan, nantinya wadah ini digunakan untuk menyimpan isi file yang di copy dari file asli **bagian per bagian** sesuai dengan ukuran buffer
+3. Lalu setelah data di copy ke dalam buffer, aplikasi kita mengolah data tersebut, dan setelah diolah maka buffer tadi akan digunakan untuk pembacaan berikutnya
+4. Setelah aplikasi kita selesai mengolah data, file akan di tutup
+
+**Kelebihan** strategi pembacaan file ini adalah hemat memory karena meskipun membaca file yang sangat besar sekalipun, aplikasi kita tetap akan mengalokasikan memory sesuai ukuran buffer.
+
+**Kekurangan** strategi pembacaan file ini adalah latency nya karena aplikasi kita harus mengisi ulang buffer atau wadah sedikit demi sedikit sesuai ukuran buffer.
+
+**Cocok digunakan** untuk pembacaan file dengan ukuran besar karena memory kita tidak terbebani dengan ukuran file yang besar.
+
+Berikut adalah hasil benchmark untuk pembacaan file csv dengan ukuran `58.4 MB, 935.9 MB, dan 3.8 GB` berurutan dari `small, medium, dan big`
+
+```go
+$ go test -bench=Buffer
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkBufferedReadingSmall-12    32       35586452 ns/op | 0.035586452 second/op |  58.4 MB | Small
+BenchmarkBufferedReadingMed-12       2      526472720 ns/op | 0.526472720 second/op | 935.9 MB | Medium
+BenchmarkBufferedReadingBig-12       1     2315339263 ns/op | 2.315339263 second/op |   3.8 GB | Big
+```
+
+### 3. Memetakan isi file ke dalam [virtual memory](https://id.wikipedia.org/wiki/Memori_virtual) aplikasi kita
+
+Cara ketiga adalah dengan membaca isi file langsung ke [virtual memory](https://id.wikipedia.org/wiki/Memori_virtual), di mana sistem operasi akan memetakan file tersebut ke dalam memori virtual. Berikut adalah kode untuk menggunakan cara ini:
+
+```go
+func Mmap(name string) {
+	file, err := os.Open(name)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	data, err := syscall.Mmap(int(file.Fd()), 0, int(stat.Size()), syscall.PROT_READ, syscall.MAP_SHARED)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer func() {
+		err = syscall.Munmap(data)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	}()
+}
+```
+
+Lebih jauh lagi, ini adalah apa yang terjadi di balik layar:
+
+1. Aplikasi kita melakukan [syscall](https://en.wikipedia.org/wiki/System_call) mmap ke sistem operasi, lalu aplikasi mengakses sebagian data dari file melalui sebuah pointer
+2. Ketika bagian dari data sebuah file tadi belum ada di virtual memory [(error page fault)](https://en.wikipedia.org/wiki/Page_fault), maka os akan me map atau menghubungkan antara address di virtual memory ke physical memory page by page atau bagian per bagian (biasa nya ber ukuran 4 KB)
+3. Apabila data nya sudah ada, maka aplikasi langsung membaca bagian tersebut
+4. Setelah aplikasi selesai mengolah data, map tadi akan di unmap
+
+**Kelebihan** strategi pembacaan file ini adalah sangat cepat meskipun dengan file yang sangat besar. Hal tersebut bisa terjadi karena mmap hanya membutuhkan satu syscall saja bila dibandingkan dengan strategi pembacaan buffering, selain itu sistem operasi juga melakukan beberapa optimalisasi lain, salah satu nya adalah menyimpan map dari virtual ke physical address di [TLB (translation look aside buffer)](https://en.wikipedia.org/wiki/Translation_lookaside_buffer) sehingga bila ada pengaksesan bagian dari file yang sudah pernah terbaca, akan terjadi lebih cepat.
+
+> **Note:**
+> Buffering melakukan banyak syscall setiap mengisi ulang buffer nya, hal tersebut bisa jadi sangat mahal karena akan terjadi [context switching](https://en.wikipedia.org/wiki/Context_switch) antara [user space dan kernel space](https://en.wikipedia.org/wiki/User_space_and_kernel_space) setiap melakukan syscall, sementara itu mmap hanya melakukan 2 kali context switching dalam proses nya.
+
+**Kekurangan** strategi pembacaan file ini terdapat pada masalah `sinkronisasi data`, karena file yang kita akses di mapping langsung dari disk, bisa saja ada aplikasi atau [process](<https://en.wikipedia.org/wiki/Process_(computing)>) lain yang sedang mengakses file tersebut, karena itu kita harus lebih memikirkan bagaimana sinkronisasi data akan dilakukan. Dalam pemanggilan syscall mmap sendiri terdapat parameter yang bisa kita gunakan untuk mengatur bagaimana sinkronisasi data akan dilakukan, yaitu dengan parameter ke 5 `flags int` yang dalam contoh diatas adalah [`syscall.MAP_SHARED`](https://man7.org/linux/man-pages/man2/mmap.2.html). Selain kekurangan sebelum nya, ada banyak kekurangan lain yang bahkan terdapat [paper](https://db.cs.cmu.edu/papers/2022/cidr2022-p13-crotty.pdf) tersendiri untuk membahas nya.
+
+**Cocok digunakan** untuk pembacaan file dengan ukuran sangat besar dengan sangat cepat.
+
+Berikut adalah hasil benchmark untuk pembacaan file csv dengan ukuran `58.4 MB, 935.9 MB, dan 3.8 GB` berurutan dari `small, medium, dan big`
+
+```go
+$ go test -bench=Mmap
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkMmapSmall-12     115899      10281 ns/op | 0.000010281 second/op |  58.4 MB | Small
+BenchmarkMmapMed-12        62193      19215 ns/op | 0.000019215 second/op | 935.9 MB | Medium
+BenchmarkMmapBig-12        59864      19788 ns/op | 0.000019788 second/op |   3.8 GB | Big
+```
+
+Dari hasil benchmark diatas, mmap memang sangat unggul dibandingkan strategi lain, dan menarik untuk digali lebih dalam. Di waktu yang akan datang saya akan membahas mmap lebih jauh lagi <sup>jika tidak malas</sup>.
+
+### Hasil benchmark keseluruhan
+
+```go
+$ go test -bench=.
+goos: linux
+goarch: amd64
+pkg: github.com/nailanmnabil/go-read-input
+cpu: AMD Ryzen 5 5500U with Radeon Graphics
+BenchmarkReadAllSmall-12                20       55083636 ns/op |  0.055083636 second/op |  58.4 MB | Small
+BenchmarkBufferedReadingSmall-12        31       37148273 ns/op |  0.037148273 second/op |  58.4 MB | Small
+BenchmarkMmapSmall-12               111568          10760 ns/op |   0.00001076 second/op |  58.4 MB | Small
+BenchmarkReadAllMed-12                   1     1537032544 ns/op |  1.537032544 second/op | 935.9 MB | Medium
+BenchmarkBufferedReadingMed-12           2      553790782 ns/op |  0.553790782 second/op | 935.9 MB | Medium
+BenchmarkMmapMed-12                  61093          19459 ns/op |  0.000019459 second/op | 935.9 MB | Medium
+BenchmarkReadAllBig-12                   1    13381838237 ns/op | 13.381838237 second/op |   3.8 GB | Big
+BenchmarkBufferedReadingBig-12           1     4865138266 ns/op |  4.865138266 second/op |   3.8 GB | Big
+BenchmarkMmapBig-12                  58958          19832 ns/op |  0.000019832 second/op |   3.8 GB | Big
+```

@@ -1,5 +1,5 @@
 {
-  "name": "chronark.com",
+  "name": "nabil.top",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "fmt": "pnpm rome check . --apply-unsafe && pnpm rome format . --write"
   },
   "dependencies": {
+    "@giscus/react": "^3.0.0",
     "@next/font": "^13.5.4",
     "@next/mdx": "^13.5.4",
     "@upstash/redis": "^1.23.3",

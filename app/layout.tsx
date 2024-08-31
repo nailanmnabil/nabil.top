@@ -6,26 +6,10 @@ import { Analytics } from "./components/analytics";
 
 export const metadata: Metadata = {
   title: {
-    default: "chronark.com",
-    template: "%s | chronark.com",
+    default: "nabil.top",
+    template: "%s | nabil.top",
   },
-  description: "Co-founder of unkey.dev and founder of planetfall.io",
-  openGraph: {
-    title: "chronark.com",
-    description:
-      "Co-founder of unkey.dev and founder of planetfall.io",
-    url: "https://chronark.com",
-    siteName: "chronark.com",
-    images: [
-      {
-        url: "https://chronark.com/og.png",
-        width: 1920,
-        height: 1080,
-      },
-    ],
-    locale: "en-US",
-    type: "website",
-  },
+  description: "Software developer excited about Server-side development, Distributed systems, System programming, and Security.",
   robots: {
     index: true,
     follow: true,
@@ -38,7 +22,7 @@ export const metadata: Metadata = {
     },
   },
   twitter: {
-    title: "Chronark",
+    title: "nailanmnabil",
     card: "summary_large_image",
   },
   icons: {
@@ -63,11 +47,16 @@ export default function RootLayout({
   return (
     <html lang="en" className={[inter.variable, calSans.variable].join(" ")}>
       <head>
+        <meta
+          name="google-site-verification"
+          content={process.env.GOOGLE_SITE_VERIFICATION}
+        />
         <Analytics />
       </head>
       <body
-        className={`bg-black ${process.env.NODE_ENV === "development" ? "debug-screens" : undefined
-          }`}
+        className={`bg-black ${
+          process.env.NODE_ENV === "development" ? "debug-screens" : undefined
+        }`}
       >
         {children}
       </body>
