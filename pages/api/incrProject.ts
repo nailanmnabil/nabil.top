@@ -6,7 +6,7 @@ export const config = {
   runtime: "edge",
 };
 
-export default async function incr(req: NextRequest): Promise<NextResponse> {
+export default async function incrProject(req: NextRequest): Promise<NextResponse> {
   if (req.method !== "POST") {
     return new NextResponse("use POST", { status: 405 });
   }
